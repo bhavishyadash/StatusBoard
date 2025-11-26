@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "258061077930",
+    "project_id": "status-board-e8767",
+    "storage_bucket": "status-board-e8767.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:258061077930:android:e2b53b1e1f9b8dade52fd3",
+        "android_client_info": {
+          "package_name": "com.example.statusboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKQ90v6D8UI76EsKWouYuNx1iyN3yztaE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
