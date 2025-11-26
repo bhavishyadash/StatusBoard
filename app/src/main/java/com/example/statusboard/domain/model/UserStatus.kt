@@ -1,13 +1,13 @@
 package com.example.statusboard.domain.model
 
-enum class UserStatus(val label: String){
+enum class UserStatus(val label: String) {
     FREE("Free"),
-    BUSY("Busy"),
+    DND("Do Not Disturb"),
     AWAY("Away"),
-    OFFLINE("Offline")
+    SLEEPING("Sleeping");
 
     companion object {
-        fun fromstring (value: String?): UserStatus =
-            entries.firstOrNull { it.label == value } ?: FREE
+        fun fromString(value: String?): UserStatus =
+            entries.firstOrNull { it.name == value } ?: FREE
     }
 }
