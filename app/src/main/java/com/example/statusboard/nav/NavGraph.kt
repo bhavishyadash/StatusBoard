@@ -4,9 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.statusboard.auth.LoginScreen
+import com.example.statusboard.auth.NicknameScreen
+import com.example.statusboard.auth.SignupScreen
 import com.example.statusboard.data.createFirestoreUserIfNeeded
-import com.example.statusboard.ui.auth.LoginScreen
-import com.example.statusboard.ui.home.StatusBoardScreen
+import com.example.statusboard.home.StatusBoardScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -15,20 +17,45 @@ fun AppNavGraph(navController: NavHostController) {
         navController = navController,
         startDestination = "login"
     ) {
-
-        // LOGIN SCREEN
         composable("login") {
             LoginScreen(
                 onLoginSuccess = {
                     createFirestoreUserIfNeeded()
-                    navController.navigate("home") {
+                    navController.navigate("nickname") {
                         popUpTo("login") { inclusive = true }
+                    }
+                },
+                onSignupClick = {
+                    navController.navigate("signup")
+                }
+            )
+        }
+
+        composable("signup") {
+            SignupScreen(
+                onSignupSuccess = {
+                    // account created -> ensure Firestore doc -> nickname
+                    createFirestoreUserIfNeeded()
+                    navController.navigate("nickname") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                },
+                onBackToLogin = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable("nickname") {
+            NicknameScreen(
+                onDone = {
+                    navController.navigate("home") {
+                        popUpTo("nickname") { inclusive = true }
                     }
                 }
             )
         }
 
-        // STATUS BOARD
         composable("home") {
             StatusBoardScreen()
         }

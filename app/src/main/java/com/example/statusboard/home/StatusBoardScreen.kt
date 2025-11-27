@@ -18,6 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.statusboard.domain.model.UserProfile
 import com.example.statusboard.domain.model.UserStatus
+import androidx.compose.foundation.clickable
+
 
 @Composable
 fun StatusBoardScreen() {
