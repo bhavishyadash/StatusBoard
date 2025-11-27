@@ -1,12 +1,14 @@
 package com.example.statusboard.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,47 +20,58 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.statusboard.domain.model.UserProfile
 import com.example.statusboard.domain.model.UserStatus
-import androidx.compose.foundation.clickable
-
 
 @Composable
 fun StatusBoardScreen() {
+    // TEMP: local UI state — later we plug in Firestore
+    var myStatus by remember { mutableStateOf(UserStatus.FREE) }
 
-    // TEMP dummy user until Firestore is wired
-    val currentUser = UserProfile(
-        name = "Bhavishya",
-        status = UserStatus.FREE
+    val me = UserProfile(
+        name = "Your Nickname",
+        status = myStatus
     )
 
     val friends = listOf(
-        UserProfile(name = "Alice", status = UserStatus.DND),
-        UserProfile(name = "Bob", status = UserStatus.FREE),
-        UserProfile(name = "Charlie", status = UserStatus.SLEEPING)
+        UserProfile("Alice", UserStatus.DND),
+        UserProfile("Bob", UserStatus.AWAY),
+        UserProfile("Charlie", UserStatus.SLEEPING),
+        UserProfile("Dylan", UserStatus.FREE),
     )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF4F4F4))
+            .background(Color(0xFFF4F4F6))
             .padding(16.dp)
     ) {
         Column {
 
-            // TOP BAR
+            // Top bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Status Board",
+                    text = "Status Board",
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.Bold
                     )
                 )
 
-                IconButton(onClick = { /* TODO */ }) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { /* TODO settings */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings"
+                        )
+                    }
+                    IconButton(onClick = { /* TODO add friend */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add friend"
+                        )
+                    }
                 }
             }
 
@@ -66,37 +79,50 @@ fun StatusBoardScreen() {
 
             // YOU CARD
             Card(
-                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(6.dp)
+                shape = RoundedCornerShape(24.dp),
+                elevation = CardDefaults.cardElevation(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF111318)
+                )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
                 ) {
-                    Text("You", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "You",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(0xFFCCCCCC)
+                    )
+
                     Spacer(Modifier.height(12.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Round avatar placeholder
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(55.dp)
+                                .size(54.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFD0D0FF))
+                                .background(Color(0xFF4C7DFF))
                         )
-                        Spacer(Modifier.width(12.dp))
+
+                        Spacer(Modifier.width(14.dp))
 
                         Column {
                             Text(
-                                currentUser.name,
+                                text = me.name,
                                 style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                )
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = Color.White
                             )
                             Text(
-                                "Status: ${currentUser.status.label}",
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodySmall
+                                text = "Status: ${me.status.label}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFB0B0B0)
                             )
                         }
                     }
@@ -107,8 +133,11 @@ fun StatusBoardScreen() {
                         UserStatus.entries.forEach { status ->
                             StatusChip(
                                 status = status,
-                                selected = currentUser.status == status,
-                                onClick = { /* TODO: update Firestore */ }
+                                selected = status == myStatus,
+                                onClick = {
+                                    myStatus = status
+                                    // TODO: update Firestore later
+                                }
                             )
                         }
                     }
@@ -118,7 +147,7 @@ fun StatusBoardScreen() {
             Spacer(Modifier.height(20.dp))
 
             Text(
-                "Friends",
+                text = "Friends",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 )
@@ -126,9 +155,11 @@ fun StatusBoardScreen() {
 
             Spacer(Modifier.height(8.dp))
 
-            LazyColumn {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
                 items(friends) { friend ->
-                    FriendCard(friend)
+                    FriendCard(friend = friend)
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -137,36 +168,40 @@ fun StatusBoardScreen() {
 }
 
 @Composable
-fun FriendCard(friend: UserProfile) {
+private fun FriendCard(friend: UserProfile) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
-        modifier = Modifier.fillMaxWidth()
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFCCE2FF))
+                    .background(Color(0xFFE0E7FF))
             )
 
             Spacer(Modifier.width(12.dp))
 
-            Column {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
-                    friend.name,
+                    text = friend.name,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 )
                 Text(
-                    friend.status.label,
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodySmall
+                    text = friend.status.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
                 )
             }
         }
@@ -174,28 +209,27 @@ fun FriendCard(friend: UserProfile) {
 }
 
 @Composable
-fun StatusChip(
+private fun StatusChip(
     status: UserStatus,
     selected: Boolean,
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(50),
-        color = if (selected) Color(0xFF4660F2) else Color(0xFFE8E8E8),
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) Color(0xFF4C7DFF) else Color(0xFF1C1F24),
         modifier = Modifier
-            .padding(end = 6.dp)
-            .height(35.dp)
-            .clip(RoundedCornerShape(50.dp))
-            .padding(horizontal = 10.dp)
+            .padding(end = 8.dp)
             .clickable { onClick() }
     ) {
         Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(horizontal = 12.dp)
+            modifier = Modifier
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = status.label,
-                color = if (selected) Color.White else Color.Black
+                style = MaterialTheme.typography.bodySmall,
+                color = if (selected) Color.White else Color(0xFFCCCCCC)
             )
         }
     }
