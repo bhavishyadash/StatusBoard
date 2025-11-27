@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">StatusBoard</string>
+    <string name="default_web_client_id">
+        258061077930-lbprt5ip3k2l9sf4rd2glrr0ssroq9id.apps.googleusercontent.com
+    </string>
+
 </resources>
