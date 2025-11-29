@@ -10,6 +10,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 @Composable
 fun NicknameScreen(
@@ -19,6 +23,21 @@ fun NicknameScreen(
 
     var nickname by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
+
+    // Optional: prefill nickname if it already exists
+    LaunchedEffect(Unit) {
+        val user = FirebaseAuth.getInstance().currentUser ?: return@LaunchedEffect
+        Firebase.firestore
+            .collection("users")
+            .document(user.uid)
+            .get()
+            .addOnSuccessListener { snap ->
+                val existing = snap.getString("nickname")
+                if (!existing.isNullOrBlank()) {
+                    nickname = existing
+                }
+            }
+    }
 
     Box(
         modifier = Modifier
@@ -66,17 +85,52 @@ fun NicknameScreen(
                             return@Button
                         }
 
-                        // 🔥 NO FIREBASE. JUST GO AHEAD.
-                        isSaving = true
-                        Toast.makeText(
-                            context,
-                            "Nickname set to \"$nickname\"",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        val auth = FirebaseAuth.getInstance()
+                        val user = auth.currentUser
+                        if (user == null) {
+                            Toast.makeText(
+                                context,
+                                "You are not logged in",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            // still let them through so app isn't blocked
+                            onDone()
+                            return@Button
+                        }
 
-                        // immediately navigate forward
-                        onDone()
-                        isSaving = false
+                        isSaving = true
+
+                        val data = mapOf(
+                            "uid" to user.uid,
+                            "email" to user.email,
+                            "nickname" to nickname.trim(),
+                            "status" to "FREE",
+                            "lastUpdated" to System.currentTimeMillis()
+                        )
+
+                        Firebase.firestore
+                            .collection("users")
+                            .document(user.uid)
+                            .set(data, SetOptions.merge())
+                            .addOnSuccessListener {
+                                isSaving = false
+                                Toast.makeText(
+                                    context,
+                                    "Nickname saved!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                onDone()  // ✅ go to home
+                            }
+                            .addOnFailureListener { e ->
+                                isSaving = false
+                                Toast.makeText(
+                                    context,
+                                    "Couldn't save nickname: ${e.localizedMessage}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                // ❗ still navigate so you NEVER get stuck
+                                onDone()
+                            }
                     },
                     enabled = !isSaving && nickname.isNotBlank(),
                     modifier = Modifier

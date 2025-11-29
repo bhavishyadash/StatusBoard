@@ -10,8 +10,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +42,6 @@ fun StatusBoardScreen(
         name = "Loading...",
         status = UserStatus.FREE
     )
-
     val friends = friendsState
 
     Box(
@@ -59,13 +66,13 @@ fun StatusBoardScreen(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { /* TODO settings */ }) {
+                    IconButton(onClick = { /* TODO: navigate to settings */ }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings"
                         )
                     }
-                    IconButton(onClick = { /* TODO add friend */ }) {
+                    IconButton(onClick = { /* TODO: navigate to Add Friend */ }) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Add friend"
@@ -129,7 +136,8 @@ fun StatusBoardScreen(
                     Spacer(Modifier.height(16.dp))
 
                     Row {
-                        UserStatus.entries.forEach { status ->
+                        // Use values() instead of entries for compatibility
+                        UserStatus.values().forEach { status ->
                             StatusChip(
                                 status = status,
                                 selected = status == me.status,
@@ -154,9 +162,9 @@ fun StatusBoardScreen(
             if (friends.isEmpty()) {
                 Text(
                     text = "No friends yet. Tap + to add someone!",
-                    color = Color.Gray,
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 8.dp)
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             } else {
                 LazyColumn(
@@ -198,7 +206,7 @@ private fun FriendCard(friend: UserProfile) {
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = friend.name,
+                    text = friend.name.ifBlank { "(no nickname)" },
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     )
