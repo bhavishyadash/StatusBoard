@@ -17,17 +17,26 @@ class StatusBoardViewModel(
     private val _me = MutableStateFlow<UserProfile?>(null)
     val me: StateFlow<UserProfile?> = _me.asStateFlow()
 
+    private val _friends = MutableStateFlow<List<UserProfile>>(emptyList())
+    val friends: StateFlow<List<UserProfile>> = _friends.asStateFlow()
+
     init {
-        // Start listening to Firestore
+        // listen to current user
         viewModelScope.launch {
             repo.observeCurrentUser().collect { profile ->
                 _me.value = profile
+            }
+        }
+
+        // listen to friends list
+        viewModelScope.launch {
+            repo.observeFriends().collect { list ->
+                _friends.value = list
             }
         }
     }
 
     fun changeStatus(status: UserStatus) {
         repo.updateStatus(status)
-        // UI will update when Firestore document updates from listener
     }
 }

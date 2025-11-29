@@ -16,7 +16,7 @@ class UserRepository(
 
     private val usersCollection = Firebase.firestore.collection("users")
 
-    // Listen to current user's profile in Firestore
+    // Listen to current user profile
     fun observeCurrentUser(): Flow<UserProfile?> = callbackFlow {
         val user = auth.currentUser
         if (user == null) {
@@ -25,7 +25,7 @@ class UserRepository(
             return@callbackFlow
         }
 
-        val listenerRegistration = usersCollection
+        val listener = usersCollection
             .document(user.uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -35,12 +35,37 @@ class UserRepository(
                 }
             }
 
-        awaitClose {
-            listenerRegistration.remove()
-        }
+        awaitClose { listener.remove() }
     }
 
-    // Update only the status field
+    // Listen to this user's friends list
+    // Firestore path: users/{uid}/friends/{friendDoc}
+    fun observeFriends(): Flow<List<UserProfile>> = callbackFlow {
+        val user = auth.currentUser
+        if (user == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val listener = usersCollection
+            .document(user.uid)
+            .collection("friends")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(emptyList())
+                } else {
+                    val list = snapshot?.documents
+                        ?.mapNotNull { it.toFriendProfile() }
+                        ?: emptyList()
+                    trySend(list)
+                }
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    // Update only the status field for current user
     fun updateStatus(status: UserStatus) {
         val user = auth.currentUser ?: return
 
@@ -54,16 +79,28 @@ class UserRepository(
     }
 }
 
-// Map Firestore doc -> UserProfile
+// Map Firestore doc -> current user profile
 private fun DocumentSnapshot.toUserProfile(): UserProfile? {
     val nickname = getString("nickname") ?: return null
     val statusString = getString("status") ?: "FREE"
 
-    val status = try {
-        UserStatus.valueOf(statusString)
-    } catch (_: Exception) {
-        UserStatus.FREE
-    }
+    val status = runCatching { UserStatus.valueOf(statusString) }
+        .getOrDefault(UserStatus.FREE)
+
+    return UserProfile(
+        name = nickname,
+        status = status
+    )
+}
+
+// Map friend document -> UserProfile
+// expected fields: nickname, status
+private fun DocumentSnapshot.toFriendProfile(): UserProfile? {
+    val nickname = getString("nickname") ?: return null
+    val statusString = getString("status") ?: "FREE"
+
+    val status = runCatching { UserStatus.valueOf(statusString) }
+        .getOrDefault(UserStatus.FREE)
 
     return UserProfile(
         name = nickname,

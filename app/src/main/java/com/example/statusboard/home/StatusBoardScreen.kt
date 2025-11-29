@@ -18,25 +18,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.statusboard.domain.model.UserProfile
 import com.example.statusboard.domain.model.UserStatus
 
 @Composable
-fun StatusBoardScreen() {
-    // TEMP: local UI state — later we plug in Firestore
-    var myStatus by remember { mutableStateOf(UserStatus.FREE) }
+fun StatusBoardScreen(
+    viewModel: StatusBoardViewModel = viewModel()
+) {
+    val meState by viewModel.me.collectAsState()
+    val friendsState by viewModel.friends.collectAsState()
 
-    val me = UserProfile(
-        name = "Your Nickname",
-        status = myStatus
+    val me = meState ?: UserProfile(
+        uid = "",
+        name = "Loading...",
+        status = UserStatus.FREE
     )
 
-    val friends = listOf(
-        UserProfile("Alice", UserStatus.DND),
-        UserProfile("Bob", UserStatus.AWAY),
-        UserProfile("Charlie", UserStatus.SLEEPING),
-        UserProfile("Dylan", UserStatus.FREE),
-    )
+    val friends = friendsState
 
     Box(
         modifier = Modifier
@@ -133,11 +132,8 @@ fun StatusBoardScreen() {
                         UserStatus.entries.forEach { status ->
                             StatusChip(
                                 status = status,
-                                selected = status == myStatus,
-                                onClick = {
-                                    myStatus = status
-                                    // TODO: update Firestore later
-                                }
+                                selected = status == me.status,
+                                onClick = { viewModel.changeStatus(status) }
                             )
                         }
                     }
@@ -155,12 +151,21 @@ fun StatusBoardScreen() {
 
             Spacer(Modifier.height(8.dp))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(friends) { friend ->
-                    FriendCard(friend = friend)
-                    Spacer(Modifier.height(8.dp))
+            if (friends.isEmpty()) {
+                Text(
+                    text = "No friends yet. Tap + to add someone!",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(friends) { friend ->
+                        FriendCard(friend = friend)
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
             }
         }
