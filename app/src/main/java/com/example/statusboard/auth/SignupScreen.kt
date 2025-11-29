@@ -9,8 +9,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.statusboard.data.createFirestoreUserIfNeeded
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -18,19 +20,22 @@ fun SignupScreen(
     onSignupSuccess: () -> Unit,
     onBackToLogin: () -> Unit
 ) {
+    val auth = remember { FirebaseAuth.getInstance() }
     val context = LocalContext.current
-    val auth = FirebaseAuth.getInstance()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var nickname by remember { mutableStateOf("") }
+
     var isLoading by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        contentAlignment = Alignment.Center
+            .padding(24.dp),
+        contentAlignment = Alignment.BottomCenter
     ) {
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -45,80 +50,126 @@ fun SignupScreen(
 
                 Text(
                     text = "Create your Account",
-                    style = MaterialTheme.typography.headlineSmall.copy(
+                    style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold
                     )
                 )
 
                 Spacer(Modifier.height(8.dp))
+
                 Text(
-                    text = "Sign up to share your status with friends",
+                    text = "Sign up with your email and password.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
 
                 Spacer(Modifier.height(24.dp))
 
+                // Nickname
+                OutlinedTextField(
+                    value = nickname,
+                    onValueChange = { nickname = it },
+                    label = { Text("Nickname") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Email
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(Modifier.height(12.dp))
 
+                // Password
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
                     singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(Modifier.height(12.dp))
 
+                // Confirm password
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
                     label = { Text("Confirm password") },
                     singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                if (errorText != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = errorText!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
                 Spacer(Modifier.height(20.dp))
 
+                // Create account button
                 Button(
                     onClick = {
-                        if (password != confirmPassword) {
-                            Toast.makeText(
-                                context,
-                                "Passwords don't match",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                        // --- validation first ---
+                        if (nickname.isBlank()) {
+                            errorText = "Nickname is required."
                             return@Button
                         }
-                        if (email.isBlank() || password.length < 6) {
-                            Toast.makeText(
-                                context,
-                                "Enter valid email & 6+ char password",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                        if (email.isBlank()) {
+                            errorText = "Email is required."
+                            return@Button
+                        }
+                        if (password.length < 6) {
+                            errorText = "Password must be at least 6 characters."
+                            return@Button
+                        }
+                        if (password != confirmPassword) {
+                            errorText = "Passwords do not match."
                             return@Button
                         }
 
+                        errorText = null
                         isLoading = true
+
                         auth.createUserWithEmailAndPassword(email.trim(), password)
                             .addOnCompleteListener { task ->
                                 isLoading = false
                                 if (task.isSuccessful) {
-                                    createFirestoreUserIfNeeded()
-                                    onSignupSuccess()
-                                } else {
                                     Toast.makeText(
                                         context,
-                                        task.exception?.localizedMessage ?: "Signup failed",
+                                        "Account created!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    onSignupSuccess()
+                                } else {
+                                    val msg = task.exception?.localizedMessage
+                                        ?: "Signup failed. Please try again."
+                                    errorText = msg
+                                    Toast.makeText(
+                                        context,
+                                        msg,
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -127,15 +178,17 @@ fun SignupScreen(
                     enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(16.dp)
+                        .height(52.dp)
                 ) {
-                    Text(if (isLoading) "Creating..." else "Create Account")
+                    Text(if (isLoading) "Creating account..." else "Create Account")
                 }
 
                 Spacer(Modifier.height(12.dp))
 
-                TextButton(onClick = onBackToLogin, modifier = Modifier.fillMaxWidth()) {
+                TextButton(
+                    onClick = onBackToLogin,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text("Back to Log In")
                 }
             }

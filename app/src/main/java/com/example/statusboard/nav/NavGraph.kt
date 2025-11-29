@@ -34,10 +34,10 @@ fun AppNavGraph(navController: NavHostController) {
         composable("signup") {
             SignupScreen(
                 onSignupSuccess = {
-                    // account created -> ensure Firestore doc -> nickname
-                    createFirestoreUserIfNeeded()
+                    // after account creation, go to nickname screen
                     navController.navigate("nickname") {
-                        popUpTo("login") { inclusive = true }
+                        popUpTo("login") { inclusive = false }
+                        popUpTo("signup") { inclusive = true }
                     }
                 },
                 onBackToLogin = {
