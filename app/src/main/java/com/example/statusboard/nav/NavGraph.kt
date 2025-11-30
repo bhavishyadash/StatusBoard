@@ -11,9 +11,14 @@ import com.example.statusboard.data.createFirestoreUserIfNeeded
 import com.example.statusboard.home.StatusBoardScreen
 import com.example.statusboard.friends.AddFriendScreen
 import com.example.statusboard.home.NotificationsScreen
+import com.example.statusboard.settings.SettingsScreen
+import com.google.firebase.auth.FirebaseAuth
+import com.example.statusboard.ui.theme.ThemeMode
 
 @Composable
-fun AppNavGraph(navController: NavHostController) {
+fun AppNavGraph(navController: NavHostController,
+                themeMode: ThemeMode,
+                onThemeChange: (ThemeMode) -> Unit) {
 
     NavHost(
         navController = navController,
@@ -74,6 +79,25 @@ fun AppNavGraph(navController: NavHostController) {
         composable("notifications") {
             NotificationsScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+        composable(route = "settings") {
+            SettingsScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onEditNickname = {
+                    navController.navigate("nickname")   // keep your existing nickname route
+                },
+                onLogoutSuccess = {
+                    // use your existing route names ("Login", "home") here
+                    navController.navigate("Login") {
+                        popUpTo("Login") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                currentTheme = themeMode,
+                onThemeChange = onThemeChange
             )
         }
     }

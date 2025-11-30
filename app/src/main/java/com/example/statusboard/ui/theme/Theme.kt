@@ -7,6 +7,13 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+// App-level theme mode
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
+}
+
 // Dark mode palette
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF4C7DFF),
@@ -49,12 +56,18 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun StatusBoardTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> systemDark
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
-    // Typography is the one from your default template (Type.kt)
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
