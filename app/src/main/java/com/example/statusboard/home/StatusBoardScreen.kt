@@ -47,6 +47,7 @@ fun StatusBoardScreen(
     onOpenSettings: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     onAddFriend: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     viewModel: StatusBoardViewModel = viewModel()
 ) {
     val meState by viewModel.me.collectAsState()
@@ -123,13 +124,15 @@ fun StatusBoardScreen(
 
             // ───────── YOU CARD ─────────
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenProfile() },
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(8.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
-            ) {
+            )  {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()

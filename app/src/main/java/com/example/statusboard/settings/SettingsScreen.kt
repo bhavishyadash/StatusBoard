@@ -22,6 +22,7 @@ import androidx.compose.material3.RadioButton
 fun SettingsScreen(
     onBack: () -> Unit = {},
     onEditNickname: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     onLogoutSuccess: () -> Unit = {},
     currentTheme: ThemeMode,
     onThemeChange: (ThemeMode) -> Unit
@@ -117,6 +118,27 @@ fun SettingsScreen(
                     Divider()
 
                     Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenProfile() },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "View profile",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "See your public presence card.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
 
                     // Change nickname row
                     Row(

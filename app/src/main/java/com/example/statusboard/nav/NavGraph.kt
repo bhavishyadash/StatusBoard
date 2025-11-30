@@ -14,6 +14,7 @@ import com.example.statusboard.home.NotificationsScreen
 import com.example.statusboard.settings.SettingsScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.example.statusboard.ui.theme.ThemeMode
+import com.example.statusboard.users.ProfileScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController,
@@ -69,7 +70,10 @@ fun AppNavGraph(navController: NavHostController,
             StatusBoardScreen(
                 onOpenSettings = { navController.navigate("settings") },
                 onOpenNotifications = { navController.navigate("notifications") },
-                onAddFriend = { navController.navigate("addFriend") })
+                onAddFriend = { navController.navigate("addFriend") },
+                onOpenProfile = { navController.navigate("profile") }
+            )
+
         }
 
 
@@ -91,6 +95,9 @@ fun AppNavGraph(navController: NavHostController,
                 onEditNickname = {
                     navController.navigate("nickname")   // keep your existing nickname route
                 },
+                onOpenProfile = {
+                    navController.navigate("profile")
+                },
                 onLogoutSuccess = {
                     // use your existing route names ("Login", "home") here
                     navController.navigate("Login") {
@@ -100,6 +107,12 @@ fun AppNavGraph(navController: NavHostController,
                 },
                 currentTheme = themeMode,
                 onThemeChange = onThemeChange
+            )
+        }
+        composable("profile") {
+            ProfileScreen(
+                onBack = { navController.popBackStack() },
+                onEditNickname = { navController.navigate("nickname") }
             )
         }
     }
