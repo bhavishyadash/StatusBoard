@@ -116,6 +116,49 @@ class StatusBoardViewModel : ViewModel() {
                 )
         }
     }
+    fun removeFriend(friendUid: String) {
+        val me = auth.currentUser ?: return
+        val db = Firebase.firestore
+        val users = db.collection("users")
+
+        viewModelScope.launch {
+            val batch = db.batch()
+            val meRef = users.document(me.uid)
+            val friendRef = users.document(friendUid)
+
+            batch.delete(meRef.collection("friends").document(friendUid))
+            batch.delete(friendRef.collection("friends").document(me.uid))
+
+            batch.commit()
+        }
+    }
+
+    fun blockUser(friendUid: String) {
+        val me = auth.currentUser ?: return
+        val db = Firebase.firestore
+        val users = db.collection("users")
+
+        viewModelScope.launch {
+            val batch = db.batch()
+            val meRef = users.document(me.uid)
+            val friendRef = users.document(friendUid)
+
+            // 1. Add to my blocked list
+            batch.set(
+                meRef.collection("blocked").document(friendUid),
+                mapOf(
+                    "uid" to friendUid,
+                    "createdAt" to System.currentTimeMillis()
+                )
+            )
+
+            // 2. Remove friendship both sides
+            batch.delete(meRef.collection("friends").document(friendUid))
+            batch.delete(friendRef.collection("friends").document(me.uid))
+
+            batch.commit()
+        }
+    }
 
     /** ─────────────────────────────────────────────────────────────
      *  CLEANUP

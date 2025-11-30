@@ -9,14 +9,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,6 +36,7 @@ import com.example.statusboard.domain.model.UserStatus
 @Composable
 fun StatusBoardScreen(
     onOpenSettings: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     onAddFriend: () -> Unit = {},
     viewModel: StatusBoardViewModel = viewModel()
 ) {
@@ -54,7 +58,7 @@ fun StatusBoardScreen(
     ) {
         Column {
 
-            // ───────── TOP BAR: Title + Settings ─────────
+            // ───────── TOP BAR: Title + Notifications + Settings ─────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -67,11 +71,19 @@ fun StatusBoardScreen(
                     )
                 )
 
-                IconButton(onClick = onOpenSettings) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings"
-                    )
+                Row {
+                    IconButton(onClick = onOpenNotifications) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications"
+                        )
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings"
+                        )
+                    }
                 }
             }
 
@@ -143,7 +155,7 @@ fun StatusBoardScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            // ───────── FRIENDS HEADER + "+" BUTTON (like your mockup) ─────────
+            // ───────── FRIENDS HEADER + "+" BUTTON (aligned like mockup) ─────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,7 +193,11 @@ fun StatusBoardScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(friends) { friend ->
-                        FriendCard(friend = friend)
+                        FriendCard(
+                            friend = friend,
+                            onRemove = { viewModel.removeFriend(friend.uid) },
+                            onBlock = { viewModel.blockUser(friend.uid) }
+                        )
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -191,41 +207,68 @@ fun StatusBoardScreen(
 }
 
 @Composable
-private fun FriendCard(friend: UserProfile) {
+private fun FriendCard(
+    friend: UserProfile,
+    onRemove: () -> Unit,
+    onBlock: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(14.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE0E7FF))
-            )
 
-            Spacer(Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = friend.name.ifBlank { "(no nickname)" },
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE0E7FF))
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = friend.name.ifBlank { "(no nickname)" },
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
                     )
-                )
-                Text(
-                    text = friend.status.label,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                    Text(
+                        text = friend.status.label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onRemove,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Remove")
+                }
+                TextButton(
+                    onClick = onBlock,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Block")
+                }
             }
         }
     }

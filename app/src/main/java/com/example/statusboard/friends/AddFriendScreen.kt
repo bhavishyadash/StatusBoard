@@ -9,7 +9,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.statusboard.domain.model.FriendRequest
+import com.example.statusboard.domain.model.FriendRequestStatus
 import com.example.statusboard.domain.model.UserProfile
 import com.example.statusboard.domain.model.UserStatus
 import com.google.firebase.auth.FirebaseAuth
@@ -27,147 +31,140 @@ fun AddFriendScreen(
     var query by remember { mutableStateOf("") }
     var isSearching by remember { mutableStateOf(false) }
     var searchResult by remember { mutableStateOf<UserProfile?>(null) }
-    var isAdding by remember { mutableStateOf(false) }
+    var isSending by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        contentAlignment = Alignment.TopCenter
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
 
-            Text(
-                text = "Add Friends",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold
-                )
+        Text(
+            text = "Add Friends",
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.Bold
             )
+        )
 
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = "Search by email or nickname.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = { Text("Email or nickname") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions.Default.copy(
+                keyboardType = KeyboardType.Text
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (errorText != null) {
             Spacer(Modifier.height(8.dp))
-
             Text(
-                text = "Search by email or nickname.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                text = errorText!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
             )
+        }
 
-            Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text("Email or nickname") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            if (errorText != null) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = errorText!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.weight(1f)
             ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Back")
-                }
-
-                Button(
-                    onClick = {
-                        if (query.isBlank()) {
-                            errorText = "Enter an email or nickname."
-                            return@Button
-                        }
-                        errorText = null
-                        isSearching = true
-                        searchResult = null
-
-                        // First try by email
-                        db.collection("users")
-                            .whereEqualTo("email", query.trim())
-                            .limit(1)
-                            .get()
-                            .addOnSuccessListener { snap ->
-                                if (!snap.isEmpty) {
-                                    val doc = snap.documents.first()
-                                    val statusString = doc.getString("status") ?: UserStatus.FREE.name
-                                    val status = runCatching {
-                                        UserStatus.valueOf(statusString)
-                                    }.getOrDefault(UserStatus.FREE)
-
-                                    searchResult = UserProfile(
-                                        uid = doc.id,
-                                        name = doc.getString("nickname") ?: "",
-                                        status = status
-                                    )
-                                    isSearching = false
-                                } else {
-                                    // Then try by nickname
-                                    db.collection("users")
-                                        .whereEqualTo("nickname", query.trim())
-                                        .limit(1)
-                                        .get()
-                                        .addOnSuccessListener { snap2 ->
-                                            if (!snap2.isEmpty) {
-                                                val doc = snap2.documents.first()
-                                                val statusString = doc.getString("status") ?: UserStatus.FREE.name
-                                                val status = runCatching {
-                                                    UserStatus.valueOf(statusString)
-                                                }.getOrDefault(UserStatus.FREE)
-
-                                                searchResult = UserProfile(
-                                                    uid = doc.id,
-                                                    name = doc.getString("nickname") ?: "",
-                                                    status = status
-                                                )
-                                            } else {
-                                                errorText = "No user found with that email or nickname."
-                                            }
-                                            isSearching = false
-                                        }
-                                        .addOnFailureListener { e ->
-                                            errorText = e.localizedMessage ?: "Search failed."
-                                            isSearching = false
-                                        }
-                                }
-                            }
-                            .addOnFailureListener { e ->
-                                errorText = e.localizedMessage ?: "Search failed."
-                                isSearching = false
-                            }
-                    },
-                    enabled = !isSearching,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(if (isSearching) "Searching..." else "Search")
-                }
+                Text("Back")
             }
 
-            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    if (query.isBlank()) {
+                        errorText = "Enter an email or nickname."
+                        return@Button
+                    }
 
-            searchResult?.let { user ->
+                    errorText = null
+                    isSearching = true
+                    searchResult = null
+
+                    val trimmed = query.trim()
+
+                    // 1) Try email
+                    db.collection("users")
+                        .whereEqualTo("email", trimmed)
+                        .limit(1)
+                        .get()
+                        .addOnSuccessListener { snap ->
+                            if (!snap.isEmpty) {
+                                val doc = snap.documents.first()
+                                searchResult = doc.toUserProfile()
+                                isSearching = false
+                            } else {
+                                // 2) Try nickname
+                                db.collection("users")
+                                    .whereEqualTo("nickname", trimmed)
+                                    .limit(1)
+                                    .get()
+                                    .addOnSuccessListener { snap2 ->
+                                        if (!snap2.isEmpty) {
+                                            val doc = snap2.documents.first()
+                                            searchResult = doc.toUserProfile()
+                                        } else {
+                                            errorText =
+                                                "No user found with that email or nickname."
+                                        }
+                                        isSearching = false
+                                    }
+                                    .addOnFailureListener { e ->
+                                        errorText = e.localizedMessage ?: "Search failed."
+                                        isSearching = false
+                                    }
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            errorText = e.localizedMessage ?: "Search failed."
+                            isSearching = false
+                        }
+                },
+                enabled = !isSearching,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(if (isSearching) "Searching..." else "Search")
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        val currentUser = auth.currentUser
+
+        searchResult?.let { user ->
+            if (currentUser != null && user.uid == currentUser.uid) {
+                Text(
+                    text = "That's you 🙂 You can't send a request to yourself.",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            } else {
                 FriendSearchResultCard(
                     user = user,
-                    isAdding = isAdding,
-                    onAddClick = {
-                        val currentUser = auth.currentUser
-                        if (currentUser == null) {
+                    isSending = isSending,
+                    onSendRequest = {
+                        val me = auth.currentUser
+                        if (me == null) {
                             Toast.makeText(
                                 context,
                                 "You must be logged in.",
@@ -176,44 +173,53 @@ fun AddFriendScreen(
                             return@FriendSearchResultCard
                         }
 
-                        if (user.uid == currentUser.uid) {
-                            Toast.makeText(
-                                context,
-                                "You can't add yourself.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            return@FriendSearchResultCard
-                        }
+                        isSending = true
 
-                        isAdding = true
+                        // Get my nickname to store in request
+                        db.collection("users").document(me.uid)
+                            .get()
+                            .addOnSuccessListener { meDoc ->
+                                val myNickname =
+                                    meDoc.getString("nickname") ?: (me.email ?: "")
 
-                        val friendDoc = db.collection("users")
-                            .document(currentUser.uid)
-                            .collection("friends")
-                            .document(user.uid)
+                                val requestId =
+                                    db.collection("friendRequests").document().id
 
-                        val friendData = mapOf(
-                            "uid" to user.uid,
-                            "nickname" to user.name,
-                            "status" to user.status.name
-                        )
+                                val requestData = mapOf(
+                                    "fromUid" to me.uid,
+                                    "fromNickname" to myNickname,
+                                    "toUid" to user.uid,
+                                    "toNickname" to user.name,
+                                    "status" to FriendRequestStatus.PENDING.name,
+                                    "createdAt" to System.currentTimeMillis()
+                                )
 
-                        friendDoc.set(friendData)
-                            .addOnSuccessListener {
-                                isAdding = false
-                                Toast.makeText(
-                                    context,
-                                    "Friend added!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                // Optionally go back
-                                // onBack()
+                                db.collection("friendRequests")
+                                    .document(requestId)
+                                    .set(requestData)
+                                    .addOnSuccessListener {
+                                        isSending = false
+                                        Toast.makeText(
+                                            context,
+                                            "Friend request sent!",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    .addOnFailureListener { e ->
+                                        isSending = false
+                                        Toast.makeText(
+                                            context,
+                                            e.localizedMessage
+                                                ?: "Failed to send request.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                             }
                             .addOnFailureListener { e ->
-                                isAdding = false
+                                isSending = false
                                 Toast.makeText(
                                     context,
-                                    e.localizedMessage ?: "Failed to add friend.",
+                                    e.localizedMessage ?: "Failed to send request.",
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -224,11 +230,26 @@ fun AddFriendScreen(
     }
 }
 
+// helper to build UserProfile from user doc
+private fun com.google.firebase.firestore.DocumentSnapshot.toUserProfile(): UserProfile {
+    val uid = id
+    val nickname = getString("nickname") ?: ""
+    val statusString = getString("status") ?: UserStatus.FREE.name
+    val status = runCatching { UserStatus.valueOf(statusString) }
+        .getOrDefault(UserStatus.FREE)
+
+    return UserProfile(
+        uid = uid,
+        name = nickname,
+        status = status
+    )
+}
+
 @Composable
 private fun FriendSearchResultCard(
     user: UserProfile,
-    isAdding: Boolean,
-    onAddClick: () -> Unit
+    isSending: Boolean,
+    onSendRequest: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -239,7 +260,9 @@ private fun FriendSearchResultCard(
         ) {
             Text(
                 text = user.name.ifBlank { "(no nickname)" },
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                )
             )
             Spacer(Modifier.height(4.dp))
             Text(
@@ -249,11 +272,11 @@ private fun FriendSearchResultCard(
             )
             Spacer(Modifier.height(12.dp))
             Button(
-                onClick = onAddClick,
-                enabled = !isAdding,
+                onClick = onSendRequest,
+                enabled = !isSending,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (isAdding) "Adding..." else "Add Friend")
+                Text(if (isSending) "Sending..." else "Send Friend Request")
             }
         }
     }
