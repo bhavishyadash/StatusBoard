@@ -131,7 +131,7 @@ fun StatusBoardScreen(
                                 color = Color.White
                             )
                             Text(
-                                text = "Status: ${me.status.label}",
+                                text = "Status: ${me.status.emoji} ${me.status.label}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFB0B0B0)
                             )
@@ -245,7 +245,7 @@ private fun FriendCard(
                         )
                     )
                     Text(
-                        text = friend.status.label,
+                        text = "${friend.status.emoji} ${friend.status.label}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
@@ -280,6 +280,12 @@ private fun StatusChip(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    // Shorter label just for the chip
+    val chipLabel = when (status) {
+        UserStatus.SLEEPING -> "Sleep"
+        else -> status.label
+    }
+
     Surface(
         shape = RoundedCornerShape(999.dp),
         color = if (selected) Color(0xFF4C7DFF) else Color(0xFF1C1F24),
@@ -293,9 +299,11 @@ private fun StatusChip(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = status.label,
+                text = "${status.emoji} $chipLabel",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (selected) Color.White else Color(0xFFCCCCCC)
+                color = if (selected) Color.White else Color(0xFFCCCCCC),
+                maxLines = 1,
+                softWrap = false
             )
         }
     }
