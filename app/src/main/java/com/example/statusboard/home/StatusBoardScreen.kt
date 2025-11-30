@@ -1,5 +1,12 @@
 package com.example.statusboard.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -50,15 +59,18 @@ fun StatusBoardScreen(
     )
     val friends = friendsState
 
+    val badgeViewModel: RequestsBadgeViewModel = viewModel()
+    val pendingCount by badgeViewModel.pendingCount.collectAsState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF4F4F6))
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         Column {
 
-            // ───────── TOP BAR: Title + Notifications + Settings ─────────
+            // ───────── TOP BAR ─────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -68,20 +80,40 @@ fun StatusBoardScreen(
                     text = "Status Board",
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.Bold
-                    )
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 Row {
-                    IconButton(onClick = onOpenNotifications) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications"
-                        )
+                    BadgedBox(
+                        badge = {
+                            if (pendingCount > 0) {
+                                Badge(
+                                    containerColor = Color(0xFFFF3B30)
+                                ) {
+                                    Text(
+                                        text = pendingCount.coerceAtMost(99).toString(),
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                        IconButton(onClick = onOpenNotifications) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                     }
+
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings"
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -95,7 +127,7 @@ fun StatusBoardScreen(
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF111318)
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
                 Column(
@@ -106,18 +138,17 @@ fun StatusBoardScreen(
                     Text(
                         text = "You",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFFCCCCCC)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
 
                     Spacer(Modifier.height(12.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // avatar placeholder
                         Box(
                             modifier = Modifier
                                 .size(54.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF4C7DFF))
+                                .background(MaterialTheme.colorScheme.primary)
                         )
 
                         Spacer(Modifier.width(14.dp))
@@ -128,19 +159,18 @@ fun StatusBoardScreen(
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.SemiBold
                                 ),
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "Status: ${me.status.emoji} ${me.status.label}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFB0B0B0)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                         }
                     }
 
                     Spacer(Modifier.height(16.dp))
 
-                    // Status chips row
                     Row {
                         UserStatus.values().forEach { status ->
                             StatusChip(
@@ -153,9 +183,50 @@ fun StatusBoardScreen(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // ───────── FRIENDS HEADER + "+" BUTTON (aligned like mockup) ─────────
+            // ───────── INCOMING REQUESTS BANNER ─────────
+            AnimatedVisibility(
+                visible = pendingCount > 0,
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut() + slideOutVertically { it / 2 }
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenNotifications() },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "You have $pendingCount friend request${if (pendingCount == 1) "" else "s"}.",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "Review",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // ───────── FRIENDS HEADER + "+" ─────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -167,13 +238,15 @@ fun StatusBoardScreen(
                     text = "Friends",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
-                    )
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 IconButton(onClick = onAddFriend) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add Friend"
+                        contentDescription = "Add Friend",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
@@ -185,7 +258,7 @@ fun StatusBoardScreen(
                 Text(
                     text = "No friends yet. Tap + to add someone!",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     modifier = Modifier.padding(top = 4.dp)
                 )
             } else {
@@ -213,7 +286,9 @@ private fun FriendCard(
     onBlock: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -230,7 +305,7 @@ private fun FriendCard(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE0E7FF))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                 )
 
                 Spacer(Modifier.width(12.dp))
@@ -242,12 +317,13 @@ private fun FriendCard(
                         text = friend.name.ifBlank { "(no nickname)" },
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold
-                        )
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "${friend.status.emoji} ${friend.status.label}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
             }
@@ -280,7 +356,16 @@ private fun StatusChip(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    // Shorter label just for the chip
+    val bgColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        label = "chipBg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "chipText"
+    )
+
+    // Shorter label for chip only
     val chipLabel = when (status) {
         UserStatus.SLEEPING -> "Sleep"
         else -> status.label
@@ -288,7 +373,7 @@ private fun StatusChip(
 
     Surface(
         shape = RoundedCornerShape(999.dp),
-        color = if (selected) Color(0xFF4C7DFF) else Color(0xFF1C1F24),
+        color = bgColor,
         modifier = Modifier
             .padding(end = 8.dp)
             .clickable { onClick() }
@@ -301,7 +386,7 @@ private fun StatusChip(
             Text(
                 text = "${status.emoji} $chipLabel",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (selected) Color.White else Color(0xFFCCCCCC),
+                color = textColor,
                 maxLines = 1,
                 softWrap = false
             )
