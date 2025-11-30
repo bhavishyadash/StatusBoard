@@ -18,11 +18,13 @@ import com.example.statusboard.ui.theme.ThemeMode
 @Composable
 fun AppNavGraph(navController: NavHostController,
                 themeMode: ThemeMode,
-                onThemeChange: (ThemeMode) -> Unit) {
+                onThemeChange: (ThemeMode) -> Unit,
+                startDestination: String
+) {
 
     NavHost(
         navController = navController,
-        startDestination = "login"
+        startDestination = startDestination
     ) {
         composable("login") {
             LoginScreen(
