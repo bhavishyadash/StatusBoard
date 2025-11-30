@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class StatusBoardViewModel : ViewModel() {
+
     private val auth = FirebaseAuth.getInstance()
     private val usersCollection = Firebase.firestore.collection("users")
 
@@ -23,33 +24,34 @@ class StatusBoardViewModel : ViewModel() {
     private val _friends = MutableStateFlow<List<UserProfile>>(emptyList())
     val friends: StateFlow<List<UserProfile>> = _friends
 
+    // Realtime listeners
     private var meListener: ListenerRegistration? = null
     private var friendsListener: ListenerRegistration? = null
 
-
     init {
         subscribeToCurrentUser()
-        // TODO later: loadFriends()
+        subscribeToFriends()
     }
 
+    /** ─────────────────────────────────────────────────────────────
+     *  LISTEN TO CURRENT USER DOCUMENT
+     *  ───────────────────────────────────────────────────────────── */
     private fun subscribeToCurrentUser() {
         val user = auth.currentUser ?: return
 
-        // Clean up any previous listener
+        // remove old listener if exists
         meListener?.remove()
 
-        meListener = usersCollection.document(user.uid)
+        meListener = usersCollection
+            .document(user.uid)
             .addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null || !snapshot.exists()) {
-                    return@addSnapshotListener
-                }
+                if (error != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
 
                 val nickname = snapshot.getString("nickname") ?: ""
                 val statusString = snapshot.getString("status") ?: UserStatus.FREE.name
 
-                val status = runCatching {
-                    UserStatus.valueOf(statusString)
-                }.getOrDefault(UserStatus.FREE)
+                val status = runCatching { UserStatus.valueOf(statusString) }
+                    .getOrDefault(UserStatus.FREE)
 
                 _me.value = UserProfile(
                     uid = user.uid,
@@ -58,8 +60,14 @@ class StatusBoardViewModel : ViewModel() {
                 )
             }
     }
+
+    /** ─────────────────────────────────────────────────────────────
+     *  LISTEN TO FRIENDS: users/{uid}/friends/{friendUid}
+     *  ───────────────────────────────────────────────────────────── */
     private fun subscribeToFriends() {
         val user = auth.currentUser ?: return
+
+        // remove previous listener
         friendsListener?.remove()
 
         friendsListener = usersCollection
@@ -72,6 +80,7 @@ class StatusBoardViewModel : ViewModel() {
                     val uid = doc.getString("uid") ?: doc.id
                     val nickname = doc.getString("nickname") ?: ""
                     val statusString = doc.getString("status") ?: UserStatus.FREE.name
+
                     val status = runCatching { UserStatus.valueOf(statusString) }
                         .getOrDefault(UserStatus.FREE)
 
@@ -86,10 +95,13 @@ class StatusBoardViewModel : ViewModel() {
             }
     }
 
+    /** ─────────────────────────────────────────────────────────────
+     *  UPDATE MY STATUS
+     *  ───────────────────────────────────────────────────────────── */
     fun changeStatus(newStatus: UserStatus) {
         val user = auth.currentUser ?: return
 
-        // Update local state immediately so UI feels snappy
+        // Update UI immediately
         _me.value = _me.value?.copy(status = newStatus)
 
         // Push to Firestore
@@ -105,8 +117,12 @@ class StatusBoardViewModel : ViewModel() {
         }
     }
 
+    /** ─────────────────────────────────────────────────────────────
+     *  CLEANUP
+     *  ───────────────────────────────────────────────────────────── */
     override fun onCleared() {
         super.onCleared()
         meListener?.remove()
+        friendsListener?.remove()
     }
 }

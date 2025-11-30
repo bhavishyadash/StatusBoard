@@ -32,6 +32,8 @@ import com.example.statusboard.domain.model.UserStatus
 
 @Composable
 fun StatusBoardScreen(
+    onOpenSettings: () -> Unit = {},
+    onAddFriend: () -> Unit = {},
     viewModel: StatusBoardViewModel = viewModel()
 ) {
     val meState by viewModel.me.collectAsState()
@@ -52,7 +54,7 @@ fun StatusBoardScreen(
     ) {
         Column {
 
-            // Top bar
+            // ───────── TOP BAR: Title + Settings ─────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -65,25 +67,17 @@ fun StatusBoardScreen(
                     )
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { /* TODO: navigate to settings */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings"
-                        )
-                    }
-                    IconButton(onClick = { /* TODO: navigate to Add Friend */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add friend"
-                        )
-                    }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings"
+                    )
                 }
             }
 
             Spacer(Modifier.height(16.dp))
 
-            // YOU CARD
+            // ───────── YOU CARD ─────────
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -105,9 +99,8 @@ fun StatusBoardScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // avatar placeholder
                         Box(
                             modifier = Modifier
                                 .size(54.dp)
@@ -135,8 +128,8 @@ fun StatusBoardScreen(
 
                     Spacer(Modifier.height(16.dp))
 
+                    // Status chips row
                     Row {
-                        // Use values() instead of entries for compatibility
                         UserStatus.values().forEach { status ->
                             StatusChip(
                                 status = status,
@@ -150,15 +143,32 @@ fun StatusBoardScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            Text(
-                text = "Friends",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold
+            // ───────── FRIENDS HEADER + "+" BUTTON (like your mockup) ─────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Friends",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    )
                 )
-            )
+
+                IconButton(onClick = onAddFriend) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Friend"
+                    )
+                }
+            }
 
             Spacer(Modifier.height(8.dp))
 
+            // ───────── FRIENDS LIST ─────────
             if (friends.isEmpty()) {
                 Text(
                     text = "No friends yet. Tap + to add someone!",

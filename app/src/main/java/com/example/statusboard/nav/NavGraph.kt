@@ -9,6 +9,7 @@ import com.example.statusboard.auth.NicknameScreen
 import com.example.statusboard.auth.SignupScreen
 import com.example.statusboard.data.createFirestoreUserIfNeeded
 import com.example.statusboard.home.StatusBoardScreen
+import com.example.statusboard.friends.AddFriendScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -57,7 +58,15 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable("home") {
-            StatusBoardScreen()
+            StatusBoardScreen(
+                onOpenSettings = { navController.navigate("settings") },
+                onAddFriend = { navController.navigate("addFriend") })
+        }
+
+        composable("addFriend") {
+            AddFriendScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }
