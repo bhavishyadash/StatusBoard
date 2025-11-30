@@ -9,13 +9,22 @@ import com.example.statusboard.auth.NicknameScreen
 import com.example.statusboard.auth.SignupScreen
 import com.example.statusboard.data.createFirestoreUserIfNeeded
 import com.example.statusboard.home.StatusBoardScreen
+import com.example.statusboard.friends.AddFriendScreen
+import com.example.statusboard.home.NotificationsScreen
+import com.example.statusboard.settings.SettingsScreen
+import com.google.firebase.auth.FirebaseAuth
+import com.example.statusboard.ui.theme.ThemeMode
 
 @Composable
-fun AppNavGraph(navController: NavHostController) {
+fun AppNavGraph(navController: NavHostController,
+                themeMode: ThemeMode,
+                onThemeChange: (ThemeMode) -> Unit,
+                startDestination: String
+) {
 
     NavHost(
         navController = navController,
-        startDestination = "login"
+        startDestination = startDestination
     ) {
         composable("login") {
             LoginScreen(
@@ -34,10 +43,10 @@ fun AppNavGraph(navController: NavHostController) {
         composable("signup") {
             SignupScreen(
                 onSignupSuccess = {
-                    // account created -> ensure Firestore doc -> nickname
-                    createFirestoreUserIfNeeded()
+                    // after account creation, go to nickname screen
                     navController.navigate("nickname") {
-                        popUpTo("login") { inclusive = true }
+                        popUpTo("login") { inclusive = false }
+                        popUpTo("signup") { inclusive = true }
                     }
                 },
                 onBackToLogin = {
@@ -57,7 +66,41 @@ fun AppNavGraph(navController: NavHostController) {
         }
 
         composable("home") {
-            StatusBoardScreen()
+            StatusBoardScreen(
+                onOpenSettings = { navController.navigate("settings") },
+                onOpenNotifications = { navController.navigate("notifications") },
+                onAddFriend = { navController.navigate("addFriend") })
+        }
+
+
+        composable("addFriend") {
+            AddFriendScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("notifications") {
+            NotificationsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(route = "settings") {
+            SettingsScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onEditNickname = {
+                    navController.navigate("nickname")   // keep your existing nickname route
+                },
+                onLogoutSuccess = {
+                    // use your existing route names ("Login", "home") here
+                    navController.navigate("Login") {
+                        popUpTo("Login") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                currentTheme = themeMode,
+                onThemeChange = onThemeChange
+            )
         }
     }
 }
