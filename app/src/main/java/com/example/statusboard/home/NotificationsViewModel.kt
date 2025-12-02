@@ -2,98 +2,75 @@ package com.example.statusboard.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.statusboard.domain.model.FriendRequest
-import com.example.statusboard.domain.model.FriendRequestStatus
+import com.example.statusboard.domain.model.NotificationItem
+import com.example.statusboard.domain.model.NotificationType
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import com.example.statusboard.domain.model.UserStatus
-
 
 class NotificationsViewModel : ViewModel() {
 
-    private val auth = FirebaseAuth.getInstance()
-    private val requestsCollection = Firebase.firestore.collection("friendRequests")
-    private val usersCollection = Firebase.firestore.collection("users")
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
-    private val _incoming = MutableStateFlow<List<FriendRequest>>(emptyList())
-    val incoming: StateFlow<List<FriendRequest>> = _incoming
+    private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
+    val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
+
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
 
     private var listener: ListenerRegistration? = null
 
     init {
-        subscribeToIncomingRequests()
+        subscribe()
     }
 
-    private fun subscribeToIncomingRequests() {
+    private fun subscribe() {
         val user = auth.currentUser ?: return
         listener?.remove()
 
-        listener = requestsCollection
-            .whereEqualTo("toUid", user.uid)
-            .whereEqualTo("status", FriendRequestStatus.PENDING.name)
-            .addSnapshotListener { snap, error ->
-                if (error != null || snap == null) return@addSnapshotListener
+        listener = firestore.collection("users")
+            .document(user.uid)
+            .collection("notifications")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) return@addSnapshotListener
 
-                val list = snap.documents.map { doc ->
-                    FriendRequest(
+                val list = snapshot.documents.mapNotNull { doc ->
+                    val typeString = doc.getString("type") ?: return@mapNotNull null
+                    val type = runCatching { NotificationType.valueOf(typeString) }
+                        .getOrElse { NotificationType.FRIEND_REQUEST }
+
+                    NotificationItem(
                         id = doc.id,
-                        fromUid = doc.getString("fromUid") ?: "",
-                        fromNickname = doc.getString("fromNickname") ?: "",
-                        toUid = doc.getString("toUid") ?: "",
-                        toNickname = doc.getString("toNickname") ?: "",
-                        status = FriendRequestStatus.PENDING,
-                        createdAt = doc.getLong("createdAt") ?: 0L
+                        type = type,
+                        fromUserId = doc.getString("fromUserId") ?: "",
+                        fromName = doc.getString("fromName") ?: "",
+                        message = doc.getString("message") ?: "",
+                        isRead = doc.getBoolean("isRead") ?: false,
+                        createdAt = doc.getTimestamp("createdAt")
+                            ?: com.google.firebase.Timestamp.now()
                     )
                 }
-                _incoming.value = list
+
+                _notifications.value = list
+                _unreadCount.value = list.count { !it.isRead }
             }
     }
 
-    fun accept(request: FriendRequest) {
-        val me = auth.currentUser ?: return
-        val db = Firebase.firestore
+    fun markAsRead(notificationId: String) {
+        val user = auth.currentUser ?: return
 
         viewModelScope.launch {
-            val batch = db.batch()
-
-            val reqRef = requestsCollection.document(request.id)
-            batch.update(reqRef, "status", FriendRequestStatus.ACCEPTED.name)
-
-            val meRef = usersCollection.document(me.uid)
-            val themRef = usersCollection.document(request.fromUid)
-
-            batch.set(
-                meRef.collection("friends").document(request.fromUid),
-                mapOf(
-                    "uid" to request.fromUid,
-                    "nickname" to request.fromNickname,
-                    "status" to UserStatus.FREE.name // initial, will change as they update
-                )
-            )
-
-            batch.set(
-                themRef.collection("friends").document(me.uid),
-                mapOf(
-                    "uid" to me.uid,
-                    "nickname" to request.toNickname,
-                    "status" to UserStatus.FREE.name
-                )
-            )
-
-            batch.commit()
-        }
-    }
-
-    fun reject(request: FriendRequest) {
-        viewModelScope.launch {
-            requestsCollection
-                .document(request.id)
-                .update("status", FriendRequestStatus.REJECTED.name)
+            firestore.collection("users")
+                .document(user.uid)
+                .collection("notifications")
+                .document(notificationId)
+                .update("isRead", true)
         }
     }
 

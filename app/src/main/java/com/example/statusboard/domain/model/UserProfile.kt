@@ -5,5 +5,11 @@ data class UserProfile(
     val name: String = "",
     val photoUrl: String? = null,
     val status: UserStatus = UserStatus.FREE,
-    val lastUpdated: Long = System.currentTimeMillis()
-)
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val avatarIndex: Int = 0,
+    val tag: Int=0
+) {
+    val handle: String
+        get() = if (name.isBlank()) "#$tag" else "$name#$tag"
+
+}
