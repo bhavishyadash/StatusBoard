@@ -10,6 +10,8 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.google.firebase.Timestamp
+
 
 class StatusBoardViewModel : ViewModel() {
 
@@ -123,5 +125,45 @@ class StatusBoardViewModel : ViewModel() {
         super.onCleared()
         meListener?.remove()
         friendsListener?.remove()
+    }
+
+    fun changeStatus(newStatus: UserStatus) {
+        val user = auth.currentUser ?: return
+
+        usersCollection
+            .document(user.uid)
+            .update("status", newStatus.name)
+            .addOnFailureListener {
+                // You can log or show a toast if you want
+            }
+    }
+    fun removeFriend(friendUid: String) {
+        val user = auth.currentUser ?: return
+
+        val myFriends = usersCollection.document(user.uid).collection("friends")
+        val theirFriends = usersCollection.document(friendUid).collection("friends")
+
+        myFriends.document(friendUid).delete()
+        theirFriends.document(user.uid).delete()
+    }
+    fun blockUser(friendUid: String) {
+        val user = auth.currentUser ?: return
+
+        val blockedRef = usersCollection
+            .document(user.uid)
+            .collection("blocked")
+            .document(friendUid)
+
+        blockedRef
+            .set(
+                mapOf(
+                    "uid" to friendUid,
+                    "blockedAt" to Timestamp.now()
+                )
+            )
+            .addOnSuccessListener {
+                // Optionally also remove them from friends
+                removeFriend(friendUid)
+            }
     }
 }

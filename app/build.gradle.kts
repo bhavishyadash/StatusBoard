@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
     implementation("com.google.firebase:firebase-analytics")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.activity.compose)
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")

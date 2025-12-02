@@ -10,7 +10,6 @@ object UserRepository {
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val users get() = firestore.collection("users")
-
     private val friendRequests get() = firestore.collection("friend_requests")
 
     fun sendFriendRequest(
@@ -22,7 +21,6 @@ object UserRepository {
             return
         }
 
-        // avoid sending to self
         if (toUserId == fromUser.uid) {
             onResult(false, "You cannot add yourself")
             return
@@ -35,14 +33,18 @@ object UserRepository {
             "createdAt" to Timestamp.now()
         )
 
-        friendRequests.add(reqData)
-            .addOnSuccessListener {
+        friendRequests
+            .add(reqData)
+            .addOnSuccessListener { docRef ->
+                val requestId = docRef.id
+
                 createNotificationForUser(
                     userId = toUserId,
                     type = NotificationType.FRIEND_REQUEST,
                     fromUserId = fromUser.uid,
                     fromName = fromUser.displayName ?: "",
-                    message = "sent you a friend request"
+                    message = "sent you a friend request",
+                    requestId = requestId
                 )
                 onResult(true, null)
             }
@@ -70,14 +72,13 @@ object UserRepository {
             val fromUserId = snapshot.getString("fromUserId") ?: return@runTransaction
             val toUserId = snapshot.getString("toUserId") ?: return@runTransaction
 
-            // Only the recipient can respond
             if (toUserId != current.uid) return@runTransaction
 
             val newStatus = if (accept) "ACCEPTED" else "REJECTED"
             tx.update(docRef, "status", newStatus)
 
             if (accept) {
-                // Add friend both ways: users/{uid}/friends/{friendUid}
+                // add friend both ways
                 val meFriends = users.document(current.uid).collection("friends")
                 val otherFriends = users.document(fromUserId).collection("friends")
 
@@ -110,7 +111,8 @@ object UserRepository {
                     "accepted your friend request"
                 } else {
                     "rejected your friend request"
-                }
+                },
+                requestId = requestId
             )
         }.addOnSuccessListener {
             onResult(true, null)
@@ -124,7 +126,8 @@ object UserRepository {
         type: NotificationType,
         fromUserId: String,
         fromName: String,
-        message: String
+        message: String,
+        requestId: String? = null
     ) {
         val notifRef = users.document(userId).collection("notifications")
 
@@ -136,6 +139,10 @@ object UserRepository {
             "isRead" to false,
             "createdAt" to Timestamp.now()
         )
+
+        if (requestId != null) {
+            data["requestId"] = requestId
+        }
 
         notifRef.add(data)
     }

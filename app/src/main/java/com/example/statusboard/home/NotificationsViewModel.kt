@@ -53,7 +53,8 @@ class NotificationsViewModel : ViewModel() {
                         message = doc.getString("message") ?: "",
                         isRead = doc.getBoolean("isRead") ?: false,
                         createdAt = doc.getTimestamp("createdAt")
-                            ?: com.google.firebase.Timestamp.now()
+                            ?: com.google.firebase.Timestamp.now(),
+                        requestId = doc.getString("requestId")
                     )
                 }
 

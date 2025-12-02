@@ -6,7 +6,7 @@ enum class NotificationType {
     FRIEND_REQUEST,
     FRIEND_ACCEPTED,
     FRIEND_REJECTED
-    // Later: MESSAGE, STATUS_UPDATE, etc.
+    // later: MESSAGE, STATUS_UPDATE, etc.
 }
 
 data class NotificationItem(
@@ -16,5 +16,6 @@ data class NotificationItem(
     val fromName: String = "",
     val message: String = "",
     val isRead: Boolean = false,
-    val createdAt: Timestamp = Timestamp.now()
+    val createdAt: Timestamp = Timestamp.now(),
+    val requestId: String? = null      // 👈 links to friend_requests doc for accept/reject
 )

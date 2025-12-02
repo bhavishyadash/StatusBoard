@@ -10,7 +10,7 @@ import com.example.statusboard.auth.SignupScreen
 import com.example.statusboard.data.createFirestoreUserIfNeeded
 import com.example.statusboard.home.StatusBoardScreen
 import com.example.statusboard.friends.AddFriendScreen
-import com.example.statusboard.home.NotificationsScreen
+import com.example.statusboard.home.NotificationScreen
 import com.example.statusboard.settings.SettingsScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.example.statusboard.ui.theme.ThemeMode
@@ -82,8 +82,9 @@ fun AppNavGraph(navController: NavHostController,
                 onBack = { navController.popBackStack() }
             )
         }
-        composable("notifications") {
-            NotificationsScreen(
+
+        composable(route = "notifications") {
+            NotificationScreen(
                 onBack = { navController.popBackStack() }
             )
         }
