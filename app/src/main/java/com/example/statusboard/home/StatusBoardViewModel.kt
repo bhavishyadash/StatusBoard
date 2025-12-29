@@ -120,6 +120,14 @@ class StatusBoardViewModel : ViewModel() {
                     }
             }
     }
+    private fun maybeExpireStatus(profile: UserProfile) {
+        val expiresAt = profile.statusExpiresAt ?: return
+        if (!profile.autoStatus) return
+
+        if (System.currentTimeMillis() > expiresAt) {
+            changeStatus(UserStatus.FREE)
+        }
+    }
 
     override fun onCleared() {
         super.onCleared()
@@ -127,15 +135,16 @@ class StatusBoardViewModel : ViewModel() {
         friendsListener?.remove()
     }
 
-    fun changeStatus(newStatus: UserStatus) {
-        val user = auth.currentUser ?: return
+    fun changeStatus(status: UserStatus) {
+        val uid = auth.currentUser?.uid ?: return
 
-        usersCollection
-            .document(user.uid)
-            .update("status", newStatus.name)
-            .addOnFailureListener {
-                // You can log or show a toast if you want
-            }
+        usersRef.document(uid).update(
+            mapOf(
+                "status" to status.name,
+                "autoStatus" to false,
+                "statusExpiresAt" to null
+            )
+        )
     }
     fun removeFriend(friendUid: String) {
         val user = auth.currentUser ?: return
