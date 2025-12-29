@@ -8,15 +8,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.statusboard.home.StatusBoardViewModel
 import com.example.statusboard.ui.theme.ThemeMode
 import com.google.firebase.auth.FirebaseAuth
-import androidx.compose.material3.RadioButton
 
 @Composable
 fun SettingsScreen(
@@ -25,11 +28,16 @@ fun SettingsScreen(
     onOpenProfile: () -> Unit = {},
     onLogoutSuccess: () -> Unit = {},
     currentTheme: ThemeMode,
-    onThemeChange: (ThemeMode) -> Unit
+    onThemeChange: (ThemeMode) -> Unit,
+    // ✅ FIX: add actual VM instance
+    viewModel: StatusBoardViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUser = auth.currentUser
+
+    // ✅ FIX: now `me` compiles
+    val me by viewModel.userProfile.collectAsStateWithLifecycle()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -49,24 +57,54 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back"
-                    )
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
 
                 Spacer(Modifier.width(8.dp))
 
                 Text(
                     text = "Settings",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            // ✅ NEW: Calendar toggle card (doesn't delete anything)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto status from Calendar", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "When enabled, meetings can set you to DND automatically.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    Switch(
+                        checked = me?.calendarAutoStatusEnabled == true,
+                        onCheckedChange = { enabled ->
+                            viewModel.toggleCalendarAutoStatus(enabled)
+                            Toast.makeText(
+                                context,
+                                if (enabled) "Calendar auto-status enabled" else "Calendar auto-status disabled",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
 
             // ───────── ACCOUNT CARD ─────────
             Card(
@@ -81,25 +119,16 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = "Account",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
 
                     Spacer(Modifier.height(8.dp))
 
-                    // Email block – clickable (change email coming later)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                Toast
-                                    .makeText(
-                                        context,
-                                        "Change email coming soon 👀",
-                                        Toast.LENGTH_SHORT
-                                    )
-                                    .show()
+                                Toast.makeText(context, "Change email coming soon 👀", Toast.LENGTH_SHORT).show()
                             }
                     ) {
                         Text(
@@ -114,9 +143,7 @@ fun SettingsScreen(
                     }
 
                     Spacer(Modifier.height(12.dp))
-
                     Divider()
-
                     Spacer(Modifier.height(12.dp))
 
                     Row(
@@ -126,12 +153,9 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            Text("View profile", style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                text = "View profile",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "See your public presence card.",
+                                "See your public presence card.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -140,7 +164,6 @@ fun SettingsScreen(
 
                     Spacer(Modifier.height(8.dp))
 
-                    // Change nickname row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -148,12 +171,9 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            Text("Change nickname", style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                text = "Change nickname",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "Update the name your friends see.",
+                                "Update the name your friends see.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -177,19 +197,14 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = "Appearance",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
 
                     Spacer(Modifier.height(8.dp))
 
+                    Text("Theme", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "Theme",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "Choose how StatusBoard follows light / dark.",
+                        "Choose how StatusBoard follows light / dark.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -234,19 +249,14 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = "About",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
 
                     Spacer(Modifier.height(8.dp))
 
+                    Text("StatusBoard", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "StatusBoard",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "A presence board for you and your friends.",
+                        "A presence board for you and your friends.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
@@ -254,7 +264,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(4.dp))
 
                     Text(
-                        text = "v0.1 (dev build)",
+                        "v0.1 (dev build)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -294,16 +304,10 @@ private fun ThemeRadioRow(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = onSelect
-        )
+        RadioButton(selected = selected, onClick = onSelect)
         Spacer(Modifier.width(8.dp))
         Column {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Text(text = label, style = MaterialTheme.typography.bodyMedium)
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,

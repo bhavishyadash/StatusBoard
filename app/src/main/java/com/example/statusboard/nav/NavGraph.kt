@@ -112,8 +112,7 @@ fun AppNavGraph(navController: NavHostController,
         }
         composable("profile") {
             ProfileScreen(
-                onBack = { navController.popBackStack() },
-                onEditNickname = { navController.navigate("nickname") }
+                onBack = { navController.popBackStack() }
             )
         }
     }

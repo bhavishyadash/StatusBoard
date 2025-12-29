@@ -1,140 +1,126 @@
 package com.example.statusboard.home
 
 import androidx.lifecycle.ViewModel
-import com.example.statusboard.data.usersCollection
 import com.example.statusboard.domain.model.UserProfile
 import com.example.statusboard.domain.model.UserStatus
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.google.firebase.Timestamp
-
 
 class StatusBoardViewModel : ViewModel() {
 
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
-    private val _me = MutableStateFlow<UserProfile?>(null)
-    val me: StateFlow<UserProfile?> = _me.asStateFlow()
+    // Root users collection
+    private val usersRef = firestore.collection("users")
+
+    // ----- UI State -----
+    private val _userProfile = MutableStateFlow<UserProfile?>(null)
+    val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
     private val _friends = MutableStateFlow<List<UserProfile>>(emptyList())
     val friends: StateFlow<List<UserProfile>> = _friends.asStateFlow()
 
-    private var meListener: ListenerRegistration? = null
-    private var friendsListener: ListenerRegistration? = null
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     init {
-        subscribeToCurrentUser()
-        subscribeToFriends()
+        listenToCurrentUser()
+        listenToFriends()
     }
 
-    private fun subscribeToCurrentUser() {
-        val user = auth.currentUser ?: return
-        meListener?.remove()
+    // ---------------------------
+    // Firestore listeners
+    // ---------------------------
 
-        meListener = usersCollection
-            .document(user.uid)
+    private fun listenToCurrentUser() {
+        val uid = auth.currentUser?.uid ?: run {
+            _errorMessage.value = "Not authenticated"
+            return
+        }
+
+        usersRef.document(uid)
             .addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null || !snapshot.exists()) {
-                    _me.value = null
+                if (error != null) {
+                    _errorMessage.value = error.message
+                    return@addSnapshotListener
+                }
+
+                if (snapshot == null || !snapshot.exists()) {
+                    _userProfile.value = null
                     return@addSnapshotListener
                 }
 
                 val nickname = snapshot.getString("nickname") ?: ""
-                val statusString = snapshot.getString("status") ?: UserStatus.FREE.name
-                val status = runCatching { UserStatus.valueOf(statusString) }
-                    .getOrElse { UserStatus.FREE }
+                val statusStr = snapshot.getString("status") ?: UserStatus.FREE.name
+                val status = runCatching { UserStatus.valueOf(statusStr) }
+                    .getOrDefault(UserStatus.FREE)
 
-                val avatarIndex = snapshot.getLong("avatarIndex")?.toInt() ?: 0
-                val tag = snapshot.getLong("tag")?.toInt() ?: 0
+                val calendarEnabled = snapshot.getBoolean("calendarAutoStatusEnabled") ?: false
 
-                _me.value = UserProfile(
-                    uid = user.uid,
-                    name = nickname,
+                _userProfile.value = UserProfile(
+                    uid = uid,
+                    nickname = nickname,
                     status = status,
-                    avatarIndex = avatarIndex,
-                    tag = tag
+                    calendarAutoStatusEnabled = calendarEnabled
                 )
             }
     }
 
-    private fun subscribeToFriends() {
-        val user = auth.currentUser ?: return
-        friendsListener?.remove()
+    private fun listenToFriends() {
+        val uid = auth.currentUser?.uid ?: return
 
-        val friendsCollection = usersCollection
-            .document(user.uid)
+        // expects: users/{uid}/friends/{friendUid} with at least { uid: friendUid }
+        usersRef.document(uid)
             .collection("friends")
-
-        friendsListener = friendsCollection
             .addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null) {
+                if (error != null) {
+                    _errorMessage.value = error.message
+                    return@addSnapshotListener
+                }
+
+                val friendUids = snapshot?.documents
+                    ?.mapNotNull { it.getString("uid") ?: it.id }
+                    ?: emptyList()
+
+                if (friendUids.isEmpty()) {
                     _friends.value = emptyList()
                     return@addSnapshotListener
                 }
 
-                val list = snapshot.documents.map { friendDoc ->
-                    val friendUid = friendDoc.getString("uid") ?: friendDoc.id
-                    friendUid
-                }
-
-                if (list.isEmpty()) {
-                    _friends.value = emptyList()
-                    return@addSnapshotListener
-                }
-
-                // Fetch user docs for each friend
-                firestore.runBatch { batch -> }
-                usersCollection
-                    .whereIn("uid", list)
+                // fetch friend profiles (simple approach)
+                usersRef.whereIn("__name__", friendUids.take(10)) // Firestore whereIn limit is 10
                     .get()
-                    .addOnSuccessListener { qs ->
-                        val friendsProfiles = qs.documents.mapNotNull { doc ->
-                            val uid = doc.getString("uid") ?: doc.id
-                            val nickname = doc.getString("nickname") ?: ""
-                            val statusString =
-                                doc.getString("status") ?: UserStatus.FREE.name
-                            val status = runCatching { UserStatus.valueOf(statusString) }
-                                .getOrElse { UserStatus.FREE }
-
-                            val avatarIndex = doc.getLong("avatarIndex")?.toInt() ?: 0
-                            val tag = doc.getLong("tag")?.toInt() ?: 0
+                    .addOnSuccessListener { friendsSnap ->
+                        val list = friendsSnap.documents.map { doc ->
+                            val nick = doc.getString("nickname") ?: "Friend"
+                            val s = runCatching {
+                                UserStatus.valueOf(doc.getString("status") ?: UserStatus.FREE.name)
+                            }.getOrDefault(UserStatus.FREE)
 
                             UserProfile(
-                                uid = uid,
-                                name = nickname,
-                                status = status,
-                                avatarIndex = avatarIndex,
-                                tag = tag
+                                uid = doc.id,
+                                nickname = nick,
+                                status = s,
+                                calendarAutoStatusEnabled = doc.getBoolean("calendarAutoStatusEnabled") ?: false
                             )
                         }
-
-                        _friends.value = friendsProfiles
-                    }
-                    .addOnFailureListener {
-                        _friends.value = emptyList()
+                        _friends.value = list
                     }
             }
     }
-    private fun maybeExpireStatus(profile: UserProfile) {
-        val expiresAt = profile.statusExpiresAt ?: return
-        if (!profile.autoStatus) return
 
-        if (System.currentTimeMillis() > expiresAt) {
-            changeStatus(UserStatus.FREE)
-        }
-    }
+    // ---------------------------
+    // Actions
+    // ---------------------------
 
-    override fun onCleared() {
-        super.onCleared()
-        meListener?.remove()
-        friendsListener?.remove()
-    }
-
+    /**
+     * Manual status change should override any automation.
+     */
     fun changeStatus(status: UserStatus) {
         val uid = auth.currentUser?.uid ?: return
 
@@ -146,33 +132,49 @@ class StatusBoardViewModel : ViewModel() {
             )
         )
     }
-    fun removeFriend(friendUid: String) {
-        val user = auth.currentUser ?: return
 
-        val myFriends = usersCollection.document(user.uid).collection("friends")
-        val theirFriends = usersCollection.document(friendUid).collection("friends")
+    /**
+     * Toggles the calendar auto-status feature flag.
+     */
+    fun toggleCalendarAutoStatus(enabled: Boolean) {
+        val uid = auth.currentUser?.uid ?: return
 
-        myFriends.document(friendUid).delete()
-        theirFriends.document(user.uid).delete()
+        usersRef.document(uid).update(
+            "calendarAutoStatusEnabled", enabled
+        )
     }
-    fun blockUser(friendUid: String) {
-        val user = auth.currentUser ?: return
 
-        val blockedRef = usersCollection
-            .document(user.uid)
+    fun removeFriend(friendUid: String) {
+        val uid = auth.currentUser?.uid ?: return
+
+        // Remove from my friends list
+        usersRef.document(uid)
+            .collection("friends")
+            .document(friendUid)
+            .delete()
+
+        // Optional: remove me from their list (comment out if you don't store both sides)
+        usersRef.document(friendUid)
+            .collection("friends")
+            .document(uid)
+            .delete()
+    }
+
+    fun blockUser(friendUid: String) {
+        val uid = auth.currentUser?.uid ?: return
+
+        val blockedRef = usersRef.document(uid)
             .collection("blocked")
             .document(friendUid)
 
-        blockedRef
-            .set(
-                mapOf(
-                    "uid" to friendUid,
-                    "blockedAt" to Timestamp.now()
-                )
+        blockedRef.set(
+            mapOf(
+                "uid" to friendUid,
+                "blockedAt" to Timestamp.now()
             )
-            .addOnSuccessListener {
-                // Optionally also remove them from friends
-                removeFriend(friendUid)
-            }
+        ).addOnSuccessListener {
+            // also remove from friends
+            removeFriend(friendUid)
+        }
     }
 }
